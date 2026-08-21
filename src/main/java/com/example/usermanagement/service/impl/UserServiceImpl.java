@@ -11,6 +11,8 @@ import com.example.usermanagement.repository.UserRepository;
 import com.example.usermanagement.service.UserService;
 import com.example.usermanagement.specification.UserSpecification;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -28,15 +30,22 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final MessageSource messageSource;
 
     @Override
     @Transactional
     public UserResponseDTO createUser(UserRequestDTO request){
         if(userRepository.existsByUsername(request.getUsername())){
-            throw new DuplicateResourceException("Username da ton tai");
+            throw new DuplicateResourceException(
+                    messageSource.getMessage("error.username.duplicate",
+                            new Object[]{request.getUsername()}, LocaleContextHolder.getLocale())
+            );
         }
         if(userRepository.existsByEmail(request.getEmail())){
-            throw new DuplicateResourceException("Email da ton tai");
+            throw new DuplicateResourceException(
+                    messageSource.getMessage("error.email.duplicate",
+                            new Object[]{request.getEmail()}, LocaleContextHolder.getLocale())
+            );
         }
         User user = userMapper.toEntity(request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
@@ -98,6 +107,8 @@ public class UserServiceImpl implements UserService {
 
     private User findUserOrThrow(Long id){
         return userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Khong tim thay user voi id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(messageSource.getMessage("error.user.not-found",
+                        new Object[]{id}, LocaleContextHolder.getLocale())
+                ));
     }
 }
