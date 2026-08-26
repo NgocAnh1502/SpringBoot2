@@ -17,6 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +35,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public UserResponseDTO createUser(UserRequestDTO request){
         if(userRepository.existsByUsername(request.getUsername())){
             throw new DuplicateResourceException(
@@ -54,6 +56,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMIN', 'USER')")
     public UserResponseDTO getUserById(Long id){
         User user = findUserOrThrow(id);
         return userMapper.toResponseDTO(user);
@@ -61,6 +64,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public UserResponseDTO updateUser(Long id, UserRequestDTO request){
         User user = findUserOrThrow(id);
         if(request.getPassword() != null) {
@@ -71,12 +75,14 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public void deleteUser(Long id){
         User user = findUserOrThrow(id);
         userRepository.delete(user);
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMIN')")
     public PageResponseDTO<UserResponseDTO> search(String searchName, int page, int size, String sortBy, String direction){
         Sort sort = direction.equalsIgnoreCase("DESC")
                 ? Sort.by(sortBy).descending()
