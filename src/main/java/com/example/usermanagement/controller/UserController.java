@@ -4,18 +4,17 @@ import com.example.usermanagement.dto.PageResponseDTO;
 import com.example.usermanagement.dto.UserRequestDTO;
 import com.example.usermanagement.dto.UserResponseDTO;
 import com.example.usermanagement.service.UserService;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
-@JsonPropertyOrder({"id", "name", "password", "email"})
 public class UserController {
     private final UserService userService;
 
@@ -39,6 +38,7 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Xoa user")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserResponseDTO> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();

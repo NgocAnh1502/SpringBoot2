@@ -63,13 +63,6 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public UserResponseDTO updateUser(Long id, UserRequestDTO request){
         User user = findUserOrThrow(id);
-
-        if(request.getUsername() != null) {
-            user.setUsername(request.getUsername());
-        }
-        if(request.getEmail() != null) {
-            user.setEmail(request.getEmail());
-        }
         if(request.getPassword() != null) {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
