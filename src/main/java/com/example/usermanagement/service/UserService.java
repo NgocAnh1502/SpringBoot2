@@ -1,13 +1,13 @@
 package com.example.usermanagement.service;
 
-import com.example.usermanagement.dto.PageResponseDTO;
-import com.example.usermanagement.dto.UserRequestDTO;
-import com.example.usermanagement.dto.UserResponseDTO;
+import com.example.usermanagement.dto.request.UserCreateRequest;
+import com.example.usermanagement.dto.response.PageResponse;
+import com.example.usermanagement.dto.response.UserResponse;
 
 public interface UserService {
-    UserResponseDTO createUser(UserRequestDTO requestDTO);
-    UserResponseDTO updateUser(Long id, UserRequestDTO requestDTO);
-    void deleteUser(Long id);
-    UserResponseDTO getUserById(Long id);
-    PageResponseDTO<UserResponseDTO> search(String searchName, int page, int size, String sortBy, String direction);
+    UserResponse createUser(UserCreateRequest requestDTO);
+    UserResponse updateUser(String id, UserCreateRequest requestDTO);
+    void deleteUser(String id);
+    UserResponse getUserById(String id);
+    PageResponse<UserResponse> search(String searchName, int page, int size);
 }

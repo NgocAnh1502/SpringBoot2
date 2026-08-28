@@ -1,6 +1,8 @@
 package com.example.usermanagement.exception;
 
+import com.example.usermanagement.constants.MessageKey;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
@@ -9,11 +11,13 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.RestClientException;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestControllerAdvice
 @RequiredArgsConstructor
 public class GlobalExceptionHandler {
@@ -31,24 +35,42 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex) {
-        List<String> details = ex.getBindingResult().getFieldErrors().stream()
-                .map(this::resolveFeildMessage)
+        List<FieldErrorDetail> details = ex.getBindingResult().getFieldErrors().stream()
+                .map(this::toFieldErrorDetail)
                 .collect(Collectors.toList());
-        String message = messageSource.getMessage("error.validation.failed", null, LocaleContextHolder.getLocale());
+        String message = messageSource.getMessage(MessageKey.ERROR_VALIDATION, null, LocaleContextHolder.getLocale());
         return buildResponse(HttpStatus.BAD_REQUEST, message, details);
+    }
+
+    private FieldErrorDetail toFieldErrorDetail(FieldError fieldError) {
+        String code = fieldError.getDefaultMessage();
+        String resolvedMessage;
+        try {
+            resolvedMessage = messageSource.getMessage(code, fieldError.getArguments(), LocaleContextHolder.getLocale());
+        } catch (Exception e) {
+            resolvedMessage = messageSource.getMessage(fieldError, LocaleContextHolder.getLocale());
+        }
+        return FieldErrorDetail.builder()
+                .field(fieldError.getField())
+                .message(resolvedMessage)
+                .build();
+    }
+
+    @ExceptionHandler(RestClientException.class)
+    public ResponseEntity<ErrorResponse> handleKeycloakCallFailed(RestClientException ex) {
+        log.error("Gọi Keycloak Admin API thất bại: {}", ex.getMessage(), ex);
+        String message = messageSource.getMessage("error.keycloak.unavailable", null, LocaleContextHolder.getLocale());
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, message, null);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneral(Exception ex) {
-        String message = messageSource.getMessage("error.internal", null, LocaleContextHolder.getLocale());
+        log.error("Lỗi không xác định: {}", ex.getMessage(), ex);
+        String message = messageSource.getMessage(MessageKey.ERROR_INTERNAL, null, LocaleContextHolder.getLocale());
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, message, null);
     }
 
-    private String resolveFeildMessage(FieldError fieldError) {
-        return messageSource.getMessage(fieldError, LocaleContextHolder.getLocale());
-    }
-
-    private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String message, List<String> details){
+    private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String message, List<FieldErrorDetail> details){
         ErrorResponse body = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(status.value())

@@ -1,12 +1,26 @@
 package com.example.usermanagement.mapper;
 
-import com.example.usermanagement.dto.UserRequestDTO;
-import com.example.usermanagement.dto.UserResponseDTO;
-import com.example.usermanagement.entity.User;
-import org.mapstruct.Mapper;
+import com.example.usermanagement.dto.response.UserResponse;
+import tools.jackson.databind.JsonNode;
+import org.springframework.stereotype.Component;
 
-@Mapper(componentModel = "spring")
-public interface UserMapper {
-    User toEntity(UserRequestDTO userRequestDTO);
-    UserResponseDTO toResponseDTO(User user);
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+
+@Component
+public class UserMapper {
+    public UserResponse toResponse(JsonNode keycloakUser) {
+        return UserResponse.builder()
+                .id(keycloakUser.get("id").asText())
+                .username(keycloakUser.get("username").asText())
+                .email(keycloakUser.hasNonNull("email") ? keycloakUser.get("email").asText() : null)
+                .enabled(keycloakUser.get("enabled").asBoolean())
+                .createdTimestamp(keycloakUser.hasNonNull("createdTimestamp")
+                        ? LocalDateTime.ofInstant(
+                                Instant.ofEpochMilli(keycloakUser.get("createdTimestamp").asLong()),
+                                ZoneId.systemDefault())
+                        : null)
+                .build();
+    }
 }

@@ -1,4 +1,4 @@
-package com.example.usermanagement.dto;
+package com.example.usermanagement.exception;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,8 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserResponseDTO {
-    private Long id;
-    private String username;
-    private String email;
+public class FieldErrorDetail {
+    private String field;
+    private String message;
 }
