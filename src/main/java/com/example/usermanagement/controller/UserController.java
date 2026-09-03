@@ -37,7 +37,7 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Cap nhat user")
     public ResponseEntity<UserResponse> updateUser(@PathVariable String id, @Valid @RequestBody PasswordUpdateRequest request) {
-        return ResponseEntity.ok(userService.updateUser(id, request));
+        return ResponseEntity.ok(userService.updatePassword(id, request));
     }
 
     @DeleteMapping("/{id}")

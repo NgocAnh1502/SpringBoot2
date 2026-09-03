@@ -16,5 +16,7 @@ public class MessageKey {
     public static final String ERROR_KEYCLOAK_UNAVAILABLE = "error.keycloak.unavailable";
     public static final String ERROR_KEYCLOAK_TOKEN_NULL = "error.keycloak.token-null";
     public static final String ERROR_KEYCLOAK_LOCATION_NULL = "error.keycloak.location-null";
+    public static final String ERROR_DB_SAVE_FAILED = "error.db.save-failed";
+    public static final String ERROR_COMPENSATION_FAILED = "error.compensation.failed";
 
 }

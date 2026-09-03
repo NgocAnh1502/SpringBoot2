@@ -7,7 +7,7 @@ import com.example.usermanagement.dto.response.UserResponse;
 
 public interface UserService {
     UserResponse createUser(UserCreateRequest requestDTO);
-    UserResponse updateUser(String id, PasswordUpdateRequest requestDTO);
+    UserResponse updatePassword(String id, PasswordUpdateRequest requestDTO);
     void deleteUser(String id);
     UserResponse getUserById(String id);
     PageResponse<UserResponse> search(String searchName, int page, int size);

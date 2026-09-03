@@ -63,6 +63,12 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_GATEWAY, ex.getMessage(), null);
     }
 
+    @ExceptionHandler(KeycloakCompensationException.class)
+    public ResponseEntity<ErrorResponse> handleKeycloakCompensation(KeycloakCompensationException ex) {
+        log.error("CRITICAL: Keycloak compensation failed: {}", ex.getMessage(), ex);
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage(), null);
+    }
+
     @ExceptionHandler(RestClientException.class)
     public ResponseEntity<ErrorResponse> handleKeycloakCallFailed(RestClientException ex) {
         log.error("Gọi Keycloak Admin API thất bại: {}", ex.getMessage(), ex);

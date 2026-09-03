@@ -1,70 +1,141 @@
 package com.example.usermanagement.service.impl;
 
 import com.example.usermanagement.client.KeycloakAdminClient;
+import com.example.usermanagement.constants.MessageKey;
 import com.example.usermanagement.dto.request.UserCreateRequest;
 import com.example.usermanagement.dto.request.PasswordUpdateRequest;
 import com.example.usermanagement.dto.response.PageResponse;
 import com.example.usermanagement.dto.response.UserResponse;
+import com.example.usermanagement.entity.User;
+import com.example.usermanagement.exception.KeycloakCompensationException;
+import com.example.usermanagement.exception.KeycloakIntegrationException;
+import com.example.usermanagement.exception.ResourceNotFoundException;
 import com.example.usermanagement.mapper.UserMapper;
+import com.example.usermanagement.repository.UserRepository;
 import com.example.usermanagement.service.UserService;
+import com.example.usermanagement.specification.UserSpecification;
 import tools.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final KeycloakAdminClient keycloakAdminClient;
+    private final UserRepository userRepository;
+    private final MessageSource messageSource;
+
+    private String resolveMessage(String key, Object... args) {
+        return messageSource.getMessage(key, args, LocaleContextHolder.getLocale());
+    }
 
     @Override
+    @Transactional
     public UserResponse createUser(UserCreateRequest request) {
-        String userId = keycloakAdminClient.createUser(
+        // Step 1: Create user in Keycloak first
+        String keycloakId = keycloakAdminClient.createUser(
                 request.getUsername(), request.getEmail(), request.getPassword());
-        JsonNode created = keycloakAdminClient.getUserById(userId);
-        return userMapper.toResponse(created);
-    }
 
-    @Override
-    public UserResponse getUserById(String id) {
-        return userMapper.toResponse(keycloakAdminClient.getUserById(id));
-    }
+        // Step 2: Fetch full user data from Keycloak
+        JsonNode keycloakUser = keycloakAdminClient.getUserById(keycloakId);
 
-    @Override
-    public UserResponse updateUser(String id, PasswordUpdateRequest request) {
-        if (request.getPassword() != null) {
-            keycloakAdminClient.updatePassword(id, request.getPassword());
+        // Step 3: Save to database — if this fails, compensate by deleting from Keycloak
+        try {
+            User entity = userMapper.toEntity(keycloakId, keycloakUser);
+            userRepository.save(entity);
+            return userMapper.toResponse(entity);
+        } catch (Exception dbException) {
+            log.error("Failed to save user to database, compensating by deleting from Keycloak. keycloakId={}",
+                    keycloakId, dbException);
+            try {
+                keycloakAdminClient.deleteUser(keycloakId);
+            } catch (Exception compensationException) {
+                log.error("CRITICAL: Compensation failed! User exists in Keycloak but not in DB. keycloakId={}",
+                        keycloakId, compensationException);
+                throw new KeycloakCompensationException(
+                        resolveMessage(MessageKey.ERROR_COMPENSATION_FAILED), compensationException);
+            }
+            throw new KeycloakIntegrationException(
+                    resolveMessage(MessageKey.ERROR_DB_SAVE_FAILED));
         }
-        return userMapper.toResponse(keycloakAdminClient.getUserById(id));
     }
 
     @Override
-    public void deleteUser(String id) {
-        keycloakAdminClient.deleteUser(id);
+    public UserResponse getUserById(String keycloakId) {
+        User user = userRepository.findByKeycloakId(keycloakId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        resolveMessage(MessageKey.ERROR_USER_NOT_FOUND, keycloakId)));
+        return userMapper.toResponse(user);
+    }
 
+    @Override
+    public UserResponse updatePassword(String keycloakId, PasswordUpdateRequest request) {
+        // Verify user exists in DB
+        User user = userRepository.findByKeycloakId(keycloakId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        resolveMessage(MessageKey.ERROR_USER_NOT_FOUND, keycloakId)));
+
+        // Update password in Keycloak only (no DB change needed for password)
+        if (request.getPassword() != null) {
+            keycloakAdminClient.updatePassword(keycloakId, request.getPassword());
+        }
+        return userMapper.toResponse(user);
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(String keycloakId) {
+        // Step 1: Verify user exists in DB (save reference for potential compensation)
+        User user = userRepository.findByKeycloakId(keycloakId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        resolveMessage(MessageKey.ERROR_USER_NOT_FOUND, keycloakId)));
+
+        // Step 2: Delete from Keycloak first
+        keycloakAdminClient.deleteUser(keycloakId);
+
+        // Step 3: Delete from database — if this fails, compensate by re-creating in Keycloak
+        try {
+            userRepository.deleteByKeycloakId(keycloakId);
+        } catch (Exception dbException) {
+            log.error("Failed to delete user from database, compensating by re-creating in Keycloak. keycloakId={}",
+                    keycloakId, dbException);
+            try {
+                keycloakAdminClient.createUser(user.getUsername(), user.getEmail(), null);
+            } catch (Exception compensationException) {
+                log.error("CRITICAL: Compensation failed! User deleted from Keycloak but still in DB. keycloakId={}",
+                        keycloakId, compensationException);
+                throw new KeycloakCompensationException(
+                        resolveMessage(MessageKey.ERROR_COMPENSATION_FAILED), compensationException);
+            }
+            throw new KeycloakIntegrationException(
+                    resolveMessage(MessageKey.ERROR_DB_SAVE_FAILED));
+        }
     }
 
     @Override
     public PageResponse<UserResponse> search(String searchName, int page, int size) {
-        int first = page * size; // Keycloak dùng offset (first) thay vì số trang
-        List<JsonNode> rawUsers = keycloakAdminClient.searchUsers(searchName, first, size);
-        long total = keycloakAdminClient.countUsers(searchName);
-
-        List<UserResponse> content = rawUsers.stream()
-                .map(userMapper::toResponse)
-                .collect(Collectors.toList());
-
-        int totalPages = (int) Math.ceil((double) total / size);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<User> userPage = userRepository.findAll(
+                UserSpecification.hasUsernameLike(searchName), pageable);
 
         return PageResponse.<UserResponse>builder()
-                .content(content)
-                .pageNumber(page)
-                .pageSize(size)
-                .totalElements(total)
-                .totalPages(totalPages)
+                .content(userPage.getContent().stream()
+                        .map(userMapper::toResponse)
+                        .toList())
+                .pageNumber(userPage.getNumber())
+                .pageSize(userPage.getSize())
+                .totalElements(userPage.getTotalElements())
+                .totalPages(userPage.getTotalPages())
                 .build();
     }
 }
+
