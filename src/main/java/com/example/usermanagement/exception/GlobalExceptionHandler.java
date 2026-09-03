@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClientException;
 
+import com.example.usermanagement.exception.KeycloakIntegrationException;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -54,6 +56,12 @@ public class GlobalExceptionHandler {
                 .field(fieldError.getField())
                 .message(resolvedMessage)
                 .build();
+    }
+
+    @ExceptionHandler(KeycloakIntegrationException.class)
+    public ResponseEntity<ErrorResponse> handleKeycloakIntegration(KeycloakIntegrationException ex) {
+        log.error("Keycloak integration error: {}", ex.getMessage(), ex);
+        return buildResponse(HttpStatus.BAD_GATEWAY, ex.getMessage(), null);
     }
 
     @ExceptionHandler(RestClientException.class)

@@ -2,6 +2,7 @@ package com.example.usermanagement.client;
 
 import com.example.usermanagement.constants.MessageKey;
 import com.example.usermanagement.exception.DuplicateResourceException;
+import com.example.usermanagement.exception.KeycloakIntegrationException;
 import com.example.usermanagement.exception.ResourceNotFoundException;
 import tools.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
@@ -54,7 +55,10 @@ public class KeycloakAdminClient {
                 .body(form)
                 .retrieve()
                 .body(JsonNode.class);
-
+        if (response == null) {
+            throw new KeycloakIntegrationException(
+                    resolveMessage(MessageKey.ERROR_KEYCLOAK_TOKEN_NULL));
+        }
         return response.get("access_token").asText();
     }
 
@@ -95,6 +99,10 @@ public class KeycloakAdminClient {
                 .toBodilessEntity();
 
         String location = response.getHeaders().getFirst(HttpHeaders.LOCATION);
+        if (location == null) {
+            throw new KeycloakIntegrationException(
+                    resolveMessage(MessageKey.ERROR_KEYCLOAK_LOCATION_NULL));
+        }
         return location.substring(location.lastIndexOf('/') + 1);
     }
 

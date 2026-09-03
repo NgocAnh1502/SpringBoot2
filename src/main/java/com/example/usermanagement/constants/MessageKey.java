@@ -14,5 +14,7 @@ public class MessageKey {
     public static final String ERROR_EMAIL_NOT_BLANK = "user.email.not-blank";
     public static final String ERROR_EMAIL_INVALID = "user.email.invalid";
     public static final String ERROR_KEYCLOAK_UNAVAILABLE = "error.keycloak.unavailable";
+    public static final String ERROR_KEYCLOAK_TOKEN_NULL = "error.keycloak.token-null";
+    public static final String ERROR_KEYCLOAK_LOCATION_NULL = "error.keycloak.location-null";
 
 }
