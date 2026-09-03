@@ -2,6 +2,7 @@ package com.example.usermanagement.service.impl;
 
 import com.example.usermanagement.client.KeycloakAdminClient;
 import com.example.usermanagement.dto.request.UserCreateRequest;
+import com.example.usermanagement.dto.request.PasswordUpdateRequest;
 import com.example.usermanagement.dto.response.PageResponse;
 import com.example.usermanagement.dto.response.UserResponse;
 import com.example.usermanagement.mapper.UserMapper;
@@ -20,7 +21,7 @@ public class UserServiceImpl implements UserService {
     private final KeycloakAdminClient keycloakAdminClient;
 
     @Override
-    public UserResponse createUser(UserCreateRequest request){
+    public UserResponse createUser(UserCreateRequest request) {
         String userId = keycloakAdminClient.createUser(
                 request.getUsername(), request.getEmail(), request.getPassword());
         JsonNode created = keycloakAdminClient.getUserById(userId);
@@ -28,29 +29,27 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserResponse getUserById(String id){
+    public UserResponse getUserById(String id) {
         return userMapper.toResponse(keycloakAdminClient.getUserById(id));
     }
 
     @Override
-    public UserResponse updateUser(String id, UserCreateRequest request){
-        if(request.getPassword() != null) {
+    public UserResponse updateUser(String id, PasswordUpdateRequest request) {
+        if (request.getPassword() != null) {
             keycloakAdminClient.updatePassword(id, request.getPassword());
         }
-        // TODO update user in keycloak
         return userMapper.toResponse(keycloakAdminClient.getUserById(id));
     }
 
     @Override
-    public void deleteUser(String id){
-        // TODO delete user in keycloak
+    public void deleteUser(String id) {
         keycloakAdminClient.deleteUser(id);
 
     }
 
     @Override
-    public PageResponse<UserResponse> search(String searchName, int page, int size){
-        int first = page * size;   // Keycloak dùng offset (first) thay vì số trang
+    public PageResponse<UserResponse> search(String searchName, int page, int size) {
+        int first = page * size; // Keycloak dùng offset (first) thay vì số trang
         List<JsonNode> rawUsers = keycloakAdminClient.searchUsers(searchName, first, size);
         long total = keycloakAdminClient.countUsers(searchName);
 

@@ -1,6 +1,7 @@
 package com.example.usermanagement.controller;
 
 import com.example.usermanagement.dto.request.UserCreateRequest;
+import com.example.usermanagement.dto.request.PasswordUpdateRequest;
 import com.example.usermanagement.dto.response.PageResponse;
 import com.example.usermanagement.dto.response.UserResponse;
 import com.example.usermanagement.service.UserService;
@@ -35,7 +36,7 @@ public class UserController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Cap nhat user")
-    public ResponseEntity<UserResponse> updateUser(@PathVariable String id, @Valid @RequestBody UserCreateRequest request) {
+    public ResponseEntity<UserResponse> updateUser(@PathVariable String id, @Valid @RequestBody PasswordUpdateRequest request) {
         return ResponseEntity.ok(userService.updateUser(id, request));
     }
 
