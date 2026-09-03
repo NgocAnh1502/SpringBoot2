@@ -13,8 +13,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClientException;
 
-import com.example.usermanagement.exception.KeycloakIntegrationException;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -48,7 +46,8 @@ public class GlobalExceptionHandler {
         String code = fieldError.getDefaultMessage();
         String resolvedMessage;
         try {
-            resolvedMessage = messageSource.getMessage(code, fieldError.getArguments(), LocaleContextHolder.getLocale());
+            resolvedMessage = messageSource.getMessage(code, fieldError.getArguments(),
+                    LocaleContextHolder.getLocale());
         } catch (Exception e) {
             resolvedMessage = messageSource.getMessage(fieldError, LocaleContextHolder.getLocale());
         }
@@ -78,7 +77,8 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, message, null);
     }
 
-    private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String message, List<FieldErrorDetail> details){
+    private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String message,
+            List<FieldErrorDetail> details) {
         ErrorResponse body = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(status.value())

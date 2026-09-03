@@ -59,7 +59,7 @@ public class KeycloakAdminClient {
             throw new KeycloakIntegrationException(
                     resolveMessage(MessageKey.ERROR_KEYCLOAK_TOKEN_NULL));
         }
-        return response.get("access_token").asText();
+        return response.get("access_token").asString();
     }
 
     private HttpHeaders authHeader() {
