@@ -14,7 +14,6 @@ import com.example.usermanagement.mapper.UserMapper;
 import com.example.usermanagement.repository.UserRepository;
 import com.example.usermanagement.service.UserService;
 import com.example.usermanagement.specification.UserSpecification;
-import tools.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
@@ -41,16 +40,20 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse createUser(UserCreateRequest request) {
+        // Step 0: Standardize data
+        String standardizedUsername = request.getUsername() != null ? request.getUsername().trim() : null;
+        String standardizedEmail = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : null;
+        
+        request.setUsername(standardizedUsername);
+        request.setEmail(standardizedEmail);
+
         // Step 1: Create user in Keycloak first
         String keycloakId = keycloakAdminClient.createUser(
                 request.getUsername(), request.getEmail(), request.getPassword());
 
-        // Step 2: Fetch full user data from Keycloak
-        JsonNode keycloakUser = keycloakAdminClient.getUserById(keycloakId);
-
-        // Step 3: Save to database — if this fails, compensate by deleting from Keycloak
+        // Step 2: Save to database — if this fails, compensate by deleting from Keycloak
         try {
-            User entity = userMapper.toEntity(keycloakId, keycloakUser);
+            User entity = userMapper.toEntity(keycloakId, request);
             userRepository.save(entity);
             return userMapper.toResponse(entity);
         } catch (Exception dbException) {
@@ -70,41 +73,43 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserResponse getUserById(String keycloakId) {
-        User user = userRepository.findByKeycloakId(keycloakId)
+    public UserResponse getUserById(Long id) {
+        User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        resolveMessage(MessageKey.ERROR_USER_NOT_FOUND, keycloakId)));
+                        resolveMessage(MessageKey.ERROR_USER_NOT_FOUND, id)));
         return userMapper.toResponse(user);
     }
 
     @Override
-    public UserResponse updatePassword(String keycloakId, PasswordUpdateRequest request) {
+    public UserResponse updatePassword(Long id, PasswordUpdateRequest request) {
         // Verify user exists in DB
-        User user = userRepository.findByKeycloakId(keycloakId)
+        User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        resolveMessage(MessageKey.ERROR_USER_NOT_FOUND, keycloakId)));
+                        resolveMessage(MessageKey.ERROR_USER_NOT_FOUND, id)));
 
         // Update password in Keycloak only (no DB change needed for password)
         if (request.getPassword() != null) {
-            keycloakAdminClient.updatePassword(keycloakId, request.getPassword());
+            keycloakAdminClient.updatePassword(user.getKeycloakId(), request.getPassword());
         }
         return userMapper.toResponse(user);
     }
 
     @Override
     @Transactional
-    public void deleteUser(String keycloakId) {
+    public void deleteUser(Long id) {
         // Step 1: Verify user exists in DB (save reference for potential compensation)
-        User user = userRepository.findByKeycloakId(keycloakId)
+        User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        resolveMessage(MessageKey.ERROR_USER_NOT_FOUND, keycloakId)));
+                        resolveMessage(MessageKey.ERROR_USER_NOT_FOUND, id)));
+
+        String keycloakId = user.getKeycloakId();
 
         // Step 2: Delete from Keycloak first
         keycloakAdminClient.deleteUser(keycloakId);
 
         // Step 3: Delete from database — if this fails, compensate by re-creating in Keycloak
         try {
-            userRepository.deleteByKeycloakId(keycloakId);
+            userRepository.deleteById(id);
         } catch (Exception dbException) {
             log.error("Failed to delete user from database, compensating by re-creating in Keycloak. keycloakId={}",
                     keycloakId, dbException);
