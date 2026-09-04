@@ -16,8 +16,6 @@ import com.example.usermanagement.service.UserService;
 import com.example.usermanagement.specification.UserSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.MessageSource;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -31,11 +29,6 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final KeycloakAdminClient keycloakAdminClient;
     private final UserRepository userRepository;
-    private final MessageSource messageSource;
-
-    private String resolveMessage(String key, Object... args) {
-        return messageSource.getMessage(key, args, LocaleContextHolder.getLocale());
-    }
 
     @Override
     @Transactional
@@ -64,19 +57,16 @@ public class UserServiceImpl implements UserService {
             } catch (Exception compensationException) {
                 log.error("CRITICAL: Compensation failed! User exists in Keycloak but not in DB. keycloakId={}",
                         keycloakId, compensationException);
-                throw new KeycloakCompensationException(
-                        resolveMessage(MessageKey.ERROR_COMPENSATION_FAILED), compensationException);
+                throw new KeycloakCompensationException(MessageKey.ERROR_COMPENSATION_FAILED, compensationException);
             }
-            throw new KeycloakIntegrationException(
-                    resolveMessage(MessageKey.ERROR_DB_SAVE_FAILED));
+            throw new KeycloakIntegrationException(MessageKey.ERROR_DB_SAVE_FAILED);
         }
     }
 
     @Override
     public UserResponse getUserById(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        resolveMessage(MessageKey.ERROR_USER_NOT_FOUND, id)));
+                .orElseThrow(() -> new ResourceNotFoundException(MessageKey.ERROR_USER_NOT_FOUND, id));
         return userMapper.toResponse(user);
     }
 
@@ -84,8 +74,7 @@ public class UserServiceImpl implements UserService {
     public UserResponse updatePassword(Long id, PasswordUpdateRequest request) {
         // Verify user exists in DB
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        resolveMessage(MessageKey.ERROR_USER_NOT_FOUND, id)));
+                .orElseThrow(() -> new ResourceNotFoundException(MessageKey.ERROR_USER_NOT_FOUND, id));
 
         // Update password in Keycloak only (no DB change needed for password)
         if (request.getPassword() != null) {
@@ -99,8 +88,7 @@ public class UserServiceImpl implements UserService {
     public void deleteUser(Long id) {
         // Step 1: Verify user exists in DB (save reference for potential compensation)
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        resolveMessage(MessageKey.ERROR_USER_NOT_FOUND, id)));
+                .orElseThrow(() -> new ResourceNotFoundException(MessageKey.ERROR_USER_NOT_FOUND, id));
 
         String keycloakId = user.getKeycloakId();
 
@@ -118,11 +106,9 @@ public class UserServiceImpl implements UserService {
             } catch (Exception compensationException) {
                 log.error("CRITICAL: Compensation failed! User deleted from Keycloak but still in DB. keycloakId={}",
                         keycloakId, compensationException);
-                throw new KeycloakCompensationException(
-                        resolveMessage(MessageKey.ERROR_COMPENSATION_FAILED), compensationException);
+                throw new KeycloakCompensationException(MessageKey.ERROR_COMPENSATION_FAILED, compensationException);
             }
-            throw new KeycloakIntegrationException(
-                    resolveMessage(MessageKey.ERROR_DB_SAVE_FAILED));
+            throw new KeycloakIntegrationException(MessageKey.ERROR_DB_SAVE_FAILED);
         }
     }
 

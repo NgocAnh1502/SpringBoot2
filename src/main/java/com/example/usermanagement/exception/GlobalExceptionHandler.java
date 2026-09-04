@@ -23,14 +23,22 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
     private final MessageSource messageSource;
 
+    private String resolveMessage(String key, Object... args) {
+        try {
+            return messageSource.getMessage(key, args, LocaleContextHolder.getLocale());
+        } catch (Exception e) {
+            return key;
+        }
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFoundException(ResourceNotFoundException ex) {
-        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), null);
+        return buildResponse(HttpStatus.NOT_FOUND, resolveMessage(ex.getMessage(), ex.getArgs()), null);
     }
 
     @ExceptionHandler(DuplicateResourceException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateException(DuplicateResourceException ex) {
-        return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), null);
+        return buildResponse(HttpStatus.CONFLICT, resolveMessage(ex.getMessage(), ex.getArgs()), null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -59,14 +67,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(KeycloakIntegrationException.class)
     public ResponseEntity<ErrorResponse> handleKeycloakIntegration(KeycloakIntegrationException ex) {
-        log.error("Keycloak integration error: {}", ex.getMessage(), ex);
-        return buildResponse(HttpStatus.BAD_GATEWAY, ex.getMessage(), null);
+        String resolvedMessage = resolveMessage(ex.getMessage(), ex.getArgs());
+        log.error("Keycloak integration error: {}", resolvedMessage, ex);
+        return buildResponse(HttpStatus.BAD_GATEWAY, resolvedMessage, null);
     }
 
     @ExceptionHandler(KeycloakCompensationException.class)
     public ResponseEntity<ErrorResponse> handleKeycloakCompensation(KeycloakCompensationException ex) {
-        log.error("CRITICAL: Keycloak compensation failed: {}", ex.getMessage(), ex);
-        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage(), null);
+        String resolvedMessage = resolveMessage(ex.getMessage(), ex.getArgs());
+        log.error("CRITICAL: Keycloak compensation failed: {}", resolvedMessage, ex);
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, resolvedMessage, null);
     }
 
     @ExceptionHandler(RestClientException.class)

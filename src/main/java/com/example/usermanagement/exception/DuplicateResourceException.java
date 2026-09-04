@@ -1,7 +1,14 @@
 package com.example.usermanagement.exception;
 
 public class DuplicateResourceException extends RuntimeException {
-    public DuplicateResourceException(String message) {
-        super(message);
+    private final Object[] args;
+
+    public DuplicateResourceException(String messageKey, Object... args) {
+        super(messageKey);
+        this.args = args;
+    }
+
+    public Object[] getArgs() {
+        return args;
     }
 }

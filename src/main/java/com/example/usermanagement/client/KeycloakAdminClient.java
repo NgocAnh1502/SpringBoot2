@@ -7,8 +7,6 @@ import com.example.usermanagement.exception.ResourceNotFoundException;
 import tools.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.MessageSource;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -25,7 +23,6 @@ import java.util.Map;
 public class KeycloakAdminClient {
     private final RestClient keycloakTokenClient;
     private final RestClient keycloakAdminApiClient;
-    private final MessageSource messageSource;
 
     @Value("${keycloak.realm}")
     private String realm;
@@ -36,11 +33,9 @@ public class KeycloakAdminClient {
     @Value("${keycloak.admin-client-secret}")
     private String adminClientSecret;
 
-    public KeycloakAdminClient(RestClient keycloakTokenClient, RestClient keycloakAdminApiClient,
-                               MessageSource messageSource) {
+    public KeycloakAdminClient(RestClient keycloakTokenClient, RestClient keycloakAdminApiClient) {
         this.keycloakTokenClient = keycloakTokenClient;
         this.keycloakAdminApiClient = keycloakAdminApiClient;
-        this.messageSource = messageSource;
     }
 
     private String getAdminAccessToken() {
@@ -56,8 +51,7 @@ public class KeycloakAdminClient {
                 .retrieve()
                 .body(JsonNode.class);
         if (response == null) {
-            throw new KeycloakIntegrationException(
-                    resolveMessage(MessageKey.ERROR_KEYCLOAK_TOKEN_NULL));
+            throw new KeycloakIntegrationException(MessageKey.ERROR_KEYCLOAK_TOKEN_NULL);
         }
         return response.get("access_token").asString();
     }
@@ -66,10 +60,6 @@ public class KeycloakAdminClient {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(getAdminAccessToken());
         return headers;
-    }
-
-    private String resolveMessage(String key, Object... args) {
-        return messageSource.getMessage(key, args, LocaleContextHolder.getLocale());
     }
 
     public String createUser(String username, String email, String password) {
@@ -93,15 +83,13 @@ public class KeycloakAdminClient {
                 .body(body)
                 .retrieve()
                 .onStatus(status -> status.value() == 409, (req, res) -> {
-                    throw new DuplicateResourceException(
-                            resolveMessage(MessageKey.ERROR_USERNAME_DUPLICATE, username));
+                    throw new DuplicateResourceException(MessageKey.ERROR_USERNAME_DUPLICATE, username);
                 })
                 .toBodilessEntity();
 
         String location = response.getHeaders().getFirst(HttpHeaders.LOCATION);
         if (location == null) {
-            throw new KeycloakIntegrationException(
-                    resolveMessage(MessageKey.ERROR_KEYCLOAK_LOCATION_NULL));
+            throw new KeycloakIntegrationException(MessageKey.ERROR_KEYCLOAK_LOCATION_NULL);
         }
         return location.substring(location.lastIndexOf('/') + 1);
     }
@@ -112,8 +100,7 @@ public class KeycloakAdminClient {
                 .headers(h -> h.addAll(authHeader()))
                 .retrieve()
                 .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-                    throw new ResourceNotFoundException(
-                            resolveMessage(MessageKey.ERROR_USER_NOT_FOUND, id));
+                    throw new ResourceNotFoundException(MessageKey.ERROR_USER_NOT_FOUND, id);
                 })
                 .body(JsonNode.class);
     }
