@@ -18,5 +18,6 @@ public class MessageKey {
     public static final String ERROR_KEYCLOAK_LOCATION_NULL = "error.keycloak.location-null";
     public static final String ERROR_DB_SAVE_FAILED = "error.db.save-failed";
     public static final String ERROR_COMPENSATION_FAILED = "error.compensation.failed";
+    public static final String ERROR_ROLE_NOT_FOUND = "error.role.not-found";
 
 }

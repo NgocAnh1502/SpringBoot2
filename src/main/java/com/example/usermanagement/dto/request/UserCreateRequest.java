@@ -19,4 +19,6 @@ public class UserCreateRequest {
     @NotBlank(message = MessageKey.ERROR_EMAIL_NOT_BLANK)
     @Email(message = MessageKey.ERROR_EMAIL_INVALID)
     private String email;
+
+    private String role;
 }

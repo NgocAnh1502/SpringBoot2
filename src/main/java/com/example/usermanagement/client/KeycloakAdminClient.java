@@ -66,15 +66,13 @@ public class KeycloakAdminClient {
         Map<String, Object> credential = Map.of(
                 "type", "password",
                 "value", password,
-                "temporary", false
-        );
+                "temporary", false);
         Map<String, Object> body = Map.of(
                 "username", username,
                 "email", email,
                 "enabled", true,
                 "emailVerified", true,
-                "credentials", List.of(credential)
-        );
+                "credentials", List.of(credential));
 
         var response = keycloakAdminApiClient.post()
                 .uri("/{realm}/users", realm)
@@ -83,6 +81,10 @@ public class KeycloakAdminClient {
                 .body(body)
                 .retrieve()
                 .onStatus(status -> status.value() == 409, (req, res) -> {
+                    String errorBody = new String(res.getBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+                    if (errorBody.toLowerCase().contains("email")) {
+                        throw new DuplicateResourceException(MessageKey.ERROR_EMAIL_DUPLICATE, email);
+                    }
                     throw new DuplicateResourceException(MessageKey.ERROR_USERNAME_DUPLICATE, username);
                 })
                 .toBodilessEntity();
@@ -111,8 +113,7 @@ public class KeycloakAdminClient {
         Map<String, Object> credential = Map.of(
                 "type", "password",
                 "value", newPassword,
-                "temporary", false
-        );
+                "temporary", false);
 
         keycloakAdminApiClient.put()
                 .uri("/{realm}/users/{id}/reset-password", realm, id)
@@ -143,7 +144,8 @@ public class KeycloakAdminClient {
                         .build(realm))
                 .headers(h -> h.addAll(authHeader()))
                 .retrieve()
-                .body(new org.springframework.core.ParameterizedTypeReference<List<JsonNode>>() {});
+                .body(new org.springframework.core.ParameterizedTypeReference<List<JsonNode>>() {
+                });
     }
 
     public long countUsers(String username) {
@@ -156,5 +158,32 @@ public class KeycloakAdminClient {
                 .retrieve()
                 .body(Long.class);
         return count != null ? count : 0L;
+    }
+
+    private JsonNode getRealmRole(String roleName) {
+        return keycloakAdminApiClient.get()
+                .uri("/{realm}/roles/{roleName}", realm, roleName)
+                .headers(h -> h.addAll(authHeader()))
+                .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                    throw new ResourceNotFoundException(MessageKey.ERROR_ROLE_NOT_FOUND, roleName);
+                })
+                .body(JsonNode.class);
+    }
+
+    public void assignRole(String userId, String roleName) {
+        JsonNode roleRep = getRealmRole(roleName);
+
+        Map<String, Object> roleMapping = Map.of(
+                "id", roleRep.get("id").asString(),
+                "name", roleRep.get("name").asString());
+
+        keycloakAdminApiClient.post()
+                .uri("/{realm}/users/{userId}/role-mappings/realm", realm, userId)
+                .headers(h -> h.addAll(authHeader()))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(List.of(roleMapping))
+                .retrieve()
+                .toBodilessEntity();
     }
 }

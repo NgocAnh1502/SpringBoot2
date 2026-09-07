@@ -33,20 +33,33 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse createUser(UserCreateRequest request) {
-        // Step 0: Standardize data
         String standardizedUsername = request.getUsername() != null ? request.getUsername().trim() : null;
         String standardizedEmail = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : null;
         
         request.setUsername(standardizedUsername);
         request.setEmail(standardizedEmail);
 
-        // Step 1: Create user in Keycloak first
+        String role = (request.getRole() != null && !request.getRole().isBlank())
+                ? request.getRole().trim()
+                : "USER";
         String keycloakId = keycloakAdminClient.createUser(
                 request.getUsername(), request.getEmail(), request.getPassword());
-
-        // Step 2: Save to database — if this fails, compensate by deleting from Keycloak
         try {
-            User entity = userMapper.toEntity(keycloakId, request);
+            keycloakAdminClient.assignRole(keycloakId, role);
+        } catch (Exception roleException) {
+            log.error("Failed to assign role '{}' in Keycloak, compensating by deleting user. keycloakId={}",
+                    role, keycloakId, roleException);
+            try {
+                keycloakAdminClient.deleteUser(keycloakId);
+            } catch (Exception compensationException) {
+                log.error("CRITICAL: Compensation failed! User exists in Keycloak but role assignment failed. keycloakId={}",
+                        keycloakId, compensationException);
+                throw new KeycloakCompensationException(MessageKey.ERROR_COMPENSATION_FAILED, compensationException);
+            }
+            throw roleException;
+        }
+        try {
+            User entity = userMapper.toEntity(keycloakId, request, role);
             userRepository.save(entity);
             return userMapper.toResponse(entity);
         } catch (Exception dbException) {

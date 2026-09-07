@@ -29,5 +29,8 @@ public class User {
     @Column(nullable = false)
     private boolean enabled;
 
+    @Column(nullable = false, length = 50)
+    private String role;
+
     private LocalDateTime createdTimestamp;
 }

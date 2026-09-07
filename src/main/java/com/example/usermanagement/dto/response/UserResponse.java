@@ -13,10 +13,12 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserResponse {
-    private String id;
+    private String keycloakId;
+    private Long databaseId;
     private String username;
     private String email;
     private boolean enabled;
+    private String role;
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdTimestamp;
 }
