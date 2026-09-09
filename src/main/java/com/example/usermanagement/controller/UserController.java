@@ -27,7 +27,7 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasRole('ADMIN') or @securityCheck.isOwner(authentication, #id)")
     @Operation(summary = "Lay user theo id")
     public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) {
         return ResponseEntity.ok(userService.getUserById(id));
@@ -49,7 +49,7 @@ public class UserController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Phan trang danh sach user")
     public ResponseEntity<PageResponse<UserResponse>> search(
             @RequestParam(required = false) String searchName,
