@@ -6,6 +6,7 @@ public class MessageKey {
     public static final String ERROR_VALIDATION = "error.validation.failed";
     public static final String ERROR_USER_NOT_FOUND = "error.user.not-found";
     public static final String ERROR_INTERNAL = "error.internal";
+    public static final String ERROR_FORBIDDEN = "error.forbidden";
 
     public static final String ERROR_USERNAME_NOT_BLANK = "user.username.not-blank";
     public static final String ERROR_USERNAME_SIZE = "user.username.size";

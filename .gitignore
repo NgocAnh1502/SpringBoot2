@@ -37,7 +37,4 @@ build/
 .env
 application-*.properties
 application-*.yml
-KEYCLOAK_SETUP_GUIDE.md
-SETUP_GUIDE.md
-testexample.md
-execution_flow.md
+src/main/resources/static/

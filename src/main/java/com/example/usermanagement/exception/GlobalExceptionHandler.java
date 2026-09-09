@@ -12,6 +12,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClientException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -84,6 +86,13 @@ public class GlobalExceptionHandler {
         log.error("Gọi Keycloak Admin API thất bại: {}", ex.getMessage(), ex);
         String message = messageSource.getMessage("error.keycloak.unavailable", null, LocaleContextHolder.getLocale());
         return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, message, null);
+    }
+
+    @ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(Exception ex) {
+        log.warn("Access Denied: {}", ex.getMessage());
+        String message = resolveMessage(MessageKey.ERROR_FORBIDDEN);
+        return buildResponse(HttpStatus.FORBIDDEN, message, null);
     }
 
     @ExceptionHandler(Exception.class)
